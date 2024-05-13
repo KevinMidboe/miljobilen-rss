@@ -8,7 +8,7 @@ class RSS {
     this.filename = 'rss.xml';
     this.feed = null;
 
-    this.read()
+    // this.read()
   }
 
   // reads RSS file
