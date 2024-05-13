@@ -1,5 +1,7 @@
 # Miljøbilen RSS
 
+![generate-rss workflow](https://github.com/kevinmidboe/miljobilen-rss/actions/workflows/main.yml/badge.svg)
+
 Generates RSS file for next pick up date & time for Miljøbilen from FolloRen webpage. 
 
 Requires a location name to search for on website as input.
@@ -16,7 +18,7 @@ Smaller tasks:
  - [x] Connect to Google bucket, SA, etc.
  - [ ] Updates RSS generation
  - [ ] Compare existing dates in RSS to fetched
- - [ ] alert on failing run
+ - [ ] alert on failing urn
 
 ### Handle rollover of date list
 
