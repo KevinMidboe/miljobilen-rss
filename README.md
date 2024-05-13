@@ -1,0 +1,28 @@
+# Miljøbilen RSS
+
+Generates RSS file for next pick up date & time for Miljøbilen from FolloRen webpage. 
+
+Requires a location name to search for on website as input.
+
+## Features
+
+Runs every day and checks for and updates RSS with next pickup date relative to current day.
+
+## TODO
+
+This is such a shitshow.
+
+Smaller tasks:
+ - [ ] Connect to Google bucket, SA, etc.
+ - [ ] Updates RSS generation
+
+### Handle rollover of date list
+
+New years to start: 30.12 04.01 30.01
+End to new years: 21.12 31.12 03.01 14.01
+
+Create function that takes a list of dates and creates
+real date objects. It should include logic for look-ahead
+to adress rollover.
+
+
