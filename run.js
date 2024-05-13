@@ -1,4 +1,4 @@
-const fs = require('fs')
+const RSS = require('./rss.js');
 
 const CURRENT_DATE = new Date()
 
@@ -19,22 +19,6 @@ const CURRENT_DATE = new Date()
 // Create function that takes a list of dates and creates
 // real date objects. It should include logic for look-ahead
 // to adress rollover.
-
-function writeStringToFile(filePath, content) {
-    fs.writeFile(filePath, content, (err) => {
-        if (err) {
-            console.error(`Error writing to ${filePath}:`, err);
-        } else {
-            console.log(`Successfully wrote to ${filePath}`);
-        }
-    });
-}
-
-function uuidv4() {
-  return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c =>
-    (+c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> +c / 4).toString(16)
-  );
-}
 
 async function getSite(url) {
   return fetch(url).then(async (resp) => {
@@ -74,15 +58,12 @@ function getTimeForLocation(text, location) {
 function getDatesForLocation(text, location) {
   regexpDatesString = new RegExp(`${location}.*<br>((\\d+.\\d+).*)</p>`, "i");
   datesString = text.match(regexpDatesString)[0];
-  console.log(text.match(regexpDatesString))
 
   // only care about first paragraph
-  console.log("datestring", datesString)
+  // TODO make regex stop at first capture
   datesString = datesString.split('</p>')[0]
 
   // TODO null check
-
-  console.log("datestring", datesString)
 
   regexpDates = /(\d+\.\d+)+/g
   dates = datesString.match(regexpDates)
@@ -100,59 +81,7 @@ function getSolberg(site, TITLE) {
   return { name, times: { from, to }, dates };
 }
 
-function formatRSSDate(date) {
-  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-  const day = days[date.getUTCDay()];
-  const dayOfMonth = date.getUTCDate();
-  const month = months[date.getUTCMonth()];
-  const year = date.getUTCFullYear();
-  const hours = String(date.getUTCHours()).padStart(2, '0');
-  const minutes = String(date.getUTCMinutes()).padStart(2, '0');
-  const seconds = String(date.getUTCSeconds()).padStart(2, '0');
-
-  return `${day}, ${dayOfMonth} ${month} ${year} ${hours}:${minutes}:${seconds} +0000`;
-}
-
-function generateRSS(name, times, dates, URL) {
-  const description = "Viser hentetider for miljøbilen fra folloren.no"
-  const updatedDate = formatRSSDate(new Date())
-
-  const blocks = dates.reverse().map((date, n) => {
-    const relativeDate = new Date().getTime() - (n * 100000000)
-    const time = formatRSSDate(new Date(relativeDate))
-
-    return `
- <item>
-  <title></title>
-  <description>Vi minner om miljøbilen fra FolloRen besøker oss på ${name} kl ${times.from}-${times.to} den ${date}.</description>
-  <link>${URL}</link>
-  <guid isPermaLink="false">${uuidv4()}</guid>
-  <pubDate>${time}</pubDate>
- </item>
-    `
-  })
-
-  return `
-<?xml version="1.0" encoding="UTF-8" ?>
-<rss version="2.0">
-<channel>
- <title>Miljøbilen hentetider ${name}</title>
- <description>${description}</description>
- <link>https://github.com/kevinmidboe/miljobilen-rss</link>
- <copyright>2020 Example.com All rights reserved</copyright>
- <lastBuildDate>${updatedDate}</lastBuildDate>
- <pubDate>${updatedDate}</pubDate>
- <ttl>1800</ttl>
-
-  ${blocks.join('')}
-
-</channel>
-</rss>
-  `
-}
-
+// convert string DD.MM to JS date object
 function websiteDateToTime(dateString) {
   const date = new Date()
   let [_, day, month] = dateString.match(/(\d+).(\d+)/)
@@ -168,6 +97,7 @@ function websiteDateToTime(dateString) {
   return date
 }
 
+// convert JS date object to DD.MM string
 function timeToWebsiteDate(date) {
   const day = date.getDate()
   const month = date.getMonth() + 1
@@ -182,6 +112,8 @@ function relevantDates(allDates) {
   let index = 0;
   let date = 0
 
+  // this selects all dates before current date AND the
+  // next one since index incrementation is after push
   while (date <= CURRENT_DATE) {
     date = websiteDateToTime(allDates[index])
 
@@ -191,6 +123,14 @@ function relevantDates(allDates) {
 
   return relevantDates
 }
+
+// fetch websites
+// parse for name, time and dates
+// convert to JS dates
+// parse RSS feed
+// convert to JS dates
+// add dates not in feed
+// write feed
 
 async function main() {
   const URL = "https://folloren.no/levering-av-avfall/miljobilen"
@@ -212,8 +152,9 @@ async function main() {
   // todo relevant dates elsewhere
   dates = relevantDates(dates)
   console.log("rel dates:", dates)
-  rss = generateRSS(name, times, dates, URL)
-  writeStringToFile('rss.xml', rss)
+  const rss = new RSS(name);
+  rss.generate(times, dates, URL)
+  rss.write()
 }
 
 try {
