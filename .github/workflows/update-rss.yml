@@ -26,7 +26,7 @@ jobs:
         node-version: '21'
 
     - name: Run Script
-      run: node run.js
+      run: node src/run.js
 
     - id: 'auth-to-gcloud'
       uses: 'google-github-actions/auth@v2'

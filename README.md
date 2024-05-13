@@ -15,6 +15,7 @@ This is such a shitshow.
 Smaller tasks:
  - [ ] Connect to Google bucket, SA, etc.
  - [ ] Updates RSS generation
+ - [ ] Compare existing dates in RSS to fetched
 
 ### Handle rollover of date list
 
