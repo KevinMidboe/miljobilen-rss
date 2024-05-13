@@ -38,3 +38,4 @@ jobs:
       with:
         path: 'rss.xml'
         destination: 'miljobilen-rss'
+        process_gcloudignore: false
