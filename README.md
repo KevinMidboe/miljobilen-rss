@@ -13,9 +13,10 @@ Runs every day and checks for and updates RSS with next pickup date relative to 
 This is such a shitshow.
 
 Smaller tasks:
- - [ ] Connect to Google bucket, SA, etc.
+ - [x] Connect to Google bucket, SA, etc.
  - [ ] Updates RSS generation
  - [ ] Compare existing dates in RSS to fetched
+ - [ ] alert on failing run
 
 ### Handle rollover of date list
 
