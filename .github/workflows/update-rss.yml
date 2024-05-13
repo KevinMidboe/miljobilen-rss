@@ -26,3 +26,6 @@ jobs:
 
     - name: List Directory
       run: ls -l
+
+    - name: Cat rss file
+      run: cat rss.xml
