@@ -2,9 +2,25 @@
 
 ![generate-rss workflow](https://github.com/kevinmidboe/miljobilen-rss/actions/workflows/main.yml/badge.svg)
 
-Generates RSS file for next pick up date & time for Miljøbilen from FolloRen webpage. 
+Generates RSS file for next pick up date & time for Miljøbilen from [FolloRen webpage](https://folloren.no/levering-av-avfall/miljobilen/).
 
-Requires a location name to search for on website as input.
+## Usage
+
+```bash
+node src/node.js 'pentagon' 2
+```
+
+Complete list of commands:
+
+```
+usage: node src/run.js <name> [<look-ahead>] [-p] [-h | --help]
+
+These are the available arguments:
+    name        Name of location to search for
+    look-ahead  How many days in future to generate, defaults 2
+    print       Prints results
+    help        Prints this message
+```
 
 ## Features
 
@@ -12,21 +28,12 @@ Runs every day and checks for and updates RSS with next pickup date relative to 
 
 ## TODO
 
-This is such a shitshow.
-
 Smaller tasks:
  - [x] Connect to Google bucket, SA, etc.
  - [ ] Updates RSS generation
  - [ ] Compare existing dates in RSS to fetched
- - [ ] alert on failing urn
+ - [x] alert on failing urn
+ - [x] handle rollover dates
 
-### Handle rollover of date list
-
-New years to start: 30.12 04.01 30.01
-End to new years: 21.12 31.12 03.01 14.01
-
-Create function that takes a list of dates and creates
-real date objects. It should include logic for look-ahead
-to adress rollover.
 
 
