@@ -1,166 +1,193 @@
-const RSS = require('./rss.js');
+const RSS = require("./rss.js");
+const {
+  CURRENT_DATE,
+  websiteDateToTime,
+  validateArguments,
+  timeToWebsiteDate,
+} = require("./utils.js");
+const {
+  WebsiteRedirectedURLError,
+  WebsiteNotFoundError,
+  WebsiteUnexpectedError,
+  LocationNotFoundError,
+  TimesNotFoundError,
+  DatesNotFoundError,
+} = require("./errors.js");
 
-const CURRENT_DATE = new Date()
+const URL = "https://folloren.no/levering-av-avfall/miljobilen/";
 
-// TODO
-//
-// When running we want to fill all dates that are:
-// 1. next date
-// 2. any previous date
-// 3. no date that already exists
-//
-// solved with iterating until the current date found
+/**
+ * Get HTML text content from url.
+ * @param {string} url
+ * @param {RequestInit} options
+ * @returns {Promise<string>}
+ */
+async function getSite(url, options = { redirect: "manual" }) {
+  return fetch(url, options)
+    .catch((err) => {
+      throw new WebsiteUnexpectedError(err.message, url);
+    })
+    .then(async (resp) => {
+      if (resp.ok) {
+        return await resp.text();
+      }
 
-// TODO Handle rollover of date list
-//
-// New years to start: 30.12 04.01 30.01
-// End to new years: 21.12 31.12 03.01 14.01
-//
-// Create function that takes a list of dates and creates
-// real date objects. It should include logic for look-ahead
-// to adress rollover.
-
-async function getSite(url) {
-  return fetch(url).then(async (resp) => {
-    if (!resp.ok) {
-      console.log("unable to fetch site");
-      console.log(err);
-      console.log(resp.status);
-      console.log(resp.statusText);
-      throw err;
-    }
-
-    return await resp.text();
-  });
+      if (resp.status === 301) throw new WebsiteRedirectedURLError(resp, url);
+      throw new WebsiteNotFoundError(resp, url);
+    });
 }
 
+/**
+ * Searches HTML response with regexp looking for location name.
+ * @param {string} text
+ * @param {string} key
+ * @returns {string}
+ * @throws {LocationNotFoundError} If unable to match using regexp
+ */
 function getFullLocationName(text, key) {
-  regexpLocation = new RegExp(`(${key}[\\w\\d\\søæå]*),`, "i");
-  location = text.match(regexpLocation);
+  const regexpLocation = new RegExp(`(${key}[\\w\\d\\søæå]*),`, "i");
+  const location = text?.match(regexpLocation);
 
-  // TODO null handle
-  
-  return location[1]
+  if (location == null || location?.length < 2)
+    throw new LocationNotFoundError(key, location);
+
+  return location[1];
 }
 
+/**
+ * Searches HTML response with regexp looking for times.
+ * @param {string} text
+ * @param {string} location
+ * @returns {Array.<string>}
+ * @throws {TimesNotFoundError} If unable to match using regexp
+ */
 function getTimeForLocation(text, location) {
-  regexpTime = new RegExp(`${location}, (kl (\\d+:\\d+) &#8211; (\\d+:\\d+))`, "i");
-  times = text.match(regexpTime);
-  console.log(times[2], times[3])
+  const regexpTime = new RegExp(
+    `${location}, (kl (\\d+:\\d+) &#8211; (\\d+:\\d+))`,
+    "i"
+  );
+  const times = text?.match(regexpTime);
 
-  // TODO null handle
+  if (times == null || times?.length < 4)
+    throw new TimesNotFoundError(location, times);
 
-  from = times[2];
-  to = times[3];
+  const from = times[2];
+  const to = times[3];
   return [from, to];
 }
 
+/**
+ * Searches HTML response with regexp looking for dates.
+ * @param {string} text
+ * @param {string} location
+ * @returns {Array.<string>}
+ * @throws {DatesNotFoundError} If unable to match using regexp
+ */
 function getDatesForLocation(text, location) {
-  regexpDatesString = new RegExp(`${location}.*<br>((\\d+.\\d+).*)</p>`, "i");
-  datesString = text.match(regexpDatesString)[0];
+  const regexpDatesString = new RegExp(
+    `${location}.*<br>((\\d+.\\d+).*)</p>`,
+    "i"
+  );
+  let datesStringMatches = text.match(regexpDatesString);
+
+  if (datesStringMatches == null || datesStringMatches?.length === 0)
+    throw new DatesNotFoundError(location, datesStringMatches);
 
   // only care about first paragraph
   // TODO make regex stop at first capture
-  datesString = datesString.split('</p>')[0]
+  const datesString = datesStringMatches?.[0]?.split("</p>")?.[0];
 
-  // TODO null check
+  const regexpDates = /(\d+\.\d+)+/g;
+  const dates = String(datesString)?.match(regexpDates);
 
-  regexpDates = /(\d+\.\d+)+/g
-  dates = datesString.match(regexpDates)
+  if (dates == null || dates?.length === 0)
+    throw new DatesNotFoundError(location, dates);
 
-  // TODO null check
-
-  return dates
+  /*
+  dates.push('25.06')
+  dates.push('02.02')
+  dates.push('07.04')
+  dates.push('07.05')
+  */
+  return dates;
 }
 
-function getSolberg(site, TITLE) {
-  const name = getFullLocationName(site, TITLE)
+/**
+ * Since webpage only has DD.MM dates we want to handle
+ * passing from one year to the next correctly
+ * @param {Array.<Date>} dates
+ * @returns {Array.<Date>}
+ */
+function handleDatesWrappingNewYear(dates) {
+  let previousDate = dates[0];
+  return dates.map((date) => {
+    // increments year if a date is found to be wrapping
+    if (date < previousDate) {
+      date.setFullYear(date.getFullYear() + 1);
+    }
+
+    previousDate = date;
+    return date;
+  });
+}
+
+/**
+ * Searches for name, times and dates in HTML text response.
+ * @param {string} site
+ * @param {string} TITLE
+ * @returns {import('./types.js').Location}
+ */
+function getPickupDatesForLocation(site, TITLE) {
+  const name = getFullLocationName(site, TITLE);
   const [from, to] = getTimeForLocation(site, name);
-  const dates = getDatesForLocation(site, TITLE);
+  const dateStrings = getDatesForLocation(site, TITLE);
+  const dates = dateStrings.map(websiteDateToTime);
 
-  return { name, times: { from, to }, dates };
+  handleDatesWrappingNewYear(dates);
+
+  return { name, times: { from, to }, dates, dateStrings };
 }
 
-// convert string DD.MM to JS date object
-function websiteDateToTime(dateString) {
-  const date = new Date()
-  let [_, day, month] = dateString.match(/(\d+).(\d+)/)
-  day = Number(day)
-  month = Number(month)
+/**
+ * Filters out only the dates we want in RSS feed.
+ * @param {Array.<Date>} dates
+ * @param {number} LOOK_AHEAD
+ * @returns {Array.<Date>}
+ */
+function relevantDates(dates, LOOK_AHEAD) {
+  let futureDatesFound = 0;
 
-  date.setMonth(Number(month - 1))
-  date.setDate(Number(day))
-  // console.log({day, month})
-  // console.log('prev:', date <= CURRENT_DATE)
-  // console.log('futr:', date > CURRENT_DATE)
+  return dates.filter((date) => {
+    if (date > CURRENT_DATE) futureDatesFound = futureDatesFound + 1;
+    if (futureDatesFound > LOOK_AHEAD) return undefined;
 
-  return date
+    return date;
+  });
 }
-
-// convert JS date object to DD.MM string
-function timeToWebsiteDate(date) {
-  const day = date.getDate()
-  const month = date.getMonth() + 1
-
-  const pad = (n) => String(n).padStart(2, '0')
-
-  return `${pad(day)}.${pad(month)}`
-}
-
-function relevantDates(allDates) {
-  const relevantDates = []
-  let index = 0;
-  let date = 0
-
-  // this selects all dates before current date AND the
-  // next one since index incrementation is after push
-  while (date <= CURRENT_DATE) {
-    date = websiteDateToTime(allDates[index])
-
-    relevantDates.push(timeToWebsiteDate(date))
-    index = index + 1;
-  }
-
-  return relevantDates
-}
-
-// fetch websites
-// parse for name, time and dates
-// convert to JS dates
-// parse RSS feed
-// convert to JS dates
-// add dates not in feed
-// write feed
 
 async function main() {
-  const URL = "https://folloren.no/levering-av-avfall/miljobilen"
-  site = await getSite(URL);
+  const PLACE = process.argv[2];
+  const LOOK_AHEAD = process.argv[3] || 2;
+  const PRINT = process.argv[4] === '-p' || false;
+  validateArguments(PLACE, LOOK_AHEAD);
 
-  console.log("got site:", site?.length || -1);
-  const PLACE = 'Langhus'
-  location = getSolberg(site, PLACE)
-
-  console.log(location)
+  const site = await getSite(URL);
+  const location = getPickupDatesForLocation(site, PLACE);
+  // console.log(location);
 
   let { name, times, dates } = location;
-  // dates[0] = '30.12'
-  dates.push('11.05')
-  dates.push('12.05')
-  dates.push('13.05')
-  console.log("all dates:", dates)
+  dates = relevantDates(dates, Number(LOOK_AHEAD));
 
-  // todo relevant dates elsewhere
-  dates = relevantDates(dates)
-  console.log("rel dates:", dates)
+  if (PRINT) {
+    console.log(
+      `${name} @ ${times.from}-${times.to}, dates found: ${dates.length}`
+    );
+    console.log(dates.map(timeToWebsiteDate));
+  }
+
   const rss = new RSS(name);
-  rss.generate(times, dates, URL)
-  rss.write()
+  rss.generate(times, dates, URL);
+  rss.write();
 }
 
-try {
-  main();
-} catch (err) {
-  console.log("something went wront when runnning script");
-  console.log(err);
-}
-
+main();

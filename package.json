@@ -1,0 +1,9 @@
+{
+  "scripts": {
+    "check-types": "tsc --project ./jsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.2",
+    "typescript": "^5.4.5"
+  }
+}
