@@ -25,7 +25,8 @@ jobs:
         node-version: '21'
 
     - name: Run Script
-      run: node src/run.js 'solberg' 1
+      run: node src/run.js 'solberg' 1;
+        mv rss.xml solberg.xml
 
     - id: 'auth-to-gcloud'
       uses: 'google-github-actions/auth@v2'
@@ -35,6 +36,6 @@ jobs:
     - id: 'upload-rss-file'
       uses: 'google-github-actions/upload-cloud-storage@v2'
       with:
-        path: 'rss.xml'
+        path: 'solberg.xml'
         destination: 'miljobilen-rss'
         process_gcloudignore: false
