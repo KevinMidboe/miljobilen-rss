@@ -85,8 +85,8 @@ function getTimeForLocation(text, location) {
  */
 function getDatesForLocation(text, location) {
   const regexpDatesString = new RegExp(
-    `${location}.*<br>((\\d+.\\d+).*)</p>`,
-    "i"
+    `${location}.*<br>((\\d+. [a-z&#8211; ]+).*)</p>`,
+    "gmi"
   );
   let datesStringMatches = text.match(regexpDatesString);
 
@@ -97,7 +97,7 @@ function getDatesForLocation(text, location) {
   // TODO make regex stop at first capture
   const datesString = datesStringMatches?.[0]?.split("</p>")?.[0];
 
-  const regexpDates = /(\d+\.\d+)+/g;
+  const regexpDates = /(\d+. [a-z]+)+/g;
   const dates = String(datesString)?.match(regexpDates);
 
   if (dates == null || dates?.length === 0)

@@ -8,6 +8,20 @@ These are the available arguments:
     print       Prints results
     help        Prints this message`;
 
+const monthStrings = [
+  "jan",
+  "feb",
+  "mars",
+  "apr",
+  "mai",
+  "juni",
+  "juli",
+  "sept",
+  "okt",
+  "nov",
+  "des",
+];
+
 /**
  * Converts string DD.MM to JS date object.
  * @param {string} dateString
@@ -15,15 +29,16 @@ These are the available arguments:
  */
 function websiteDateToTime(dateString) {
   const date = new Date();
-  const dayAndMonthString = dateString?.match(/(\d+).(\d+)/);
+  const dayAndMonthString = dateString?.match(/(\d+)(. )([a-z]+)/);
 
-  if (dayAndMonthString == null || dayAndMonthString.length < 3)
+  if (dayAndMonthString == null || dayAndMonthString.length < 4)
     throw new Error("Unable to created string from unparsable date.");
 
   const day = Number(dayAndMonthString[1]);
-  const month = Number(dayAndMonthString[2]);
+  const monthIndex = monthStrings.findIndex(m => m === dayAndMonthString[3])
+  const month = Number(monthIndex);
 
-  date.setMonth(Number(month - 1));
+  date.setMonth(Number(month));
   date.setDate(Number(day));
 
   return date;
@@ -58,11 +73,11 @@ function timeToWebsiteDate(date) {
  */
 function validateArguments(place, lookAhead) {
   const placeUndefined = place === undefined;
-  const help = (place === "-h" || place === "--help")
-  const numberIsNotNumber = isNaN(Number(lookAhead))
-  const validation = [placeUndefined, help, numberIsNotNumber]
+  const help = place === "-h" || place === "--help";
+  const numberIsNotNumber = isNaN(Number(lookAhead));
+  const validation = [placeUndefined, help, numberIsNotNumber];
 
-  if (!validation.every(v => v === false)) {
+  if (!validation.every((v) => v === false)) {
     console.log(HELP_TEXT);
     process.exit(0);
   }
