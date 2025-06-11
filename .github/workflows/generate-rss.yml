@@ -1,28 +1,8 @@
-name: Generate & upload RSS file
-
-on:
-  push:
-    branches:
-      - main
-  schedule:
-    - cron: "0 0 * * *"  # Run every day at midnight
-
-jobs:
-  generate-rss:
-    strategy:
-      matrix:
-        runner: [ubuntu-latest, self-hosted]
-
-    runs-on: ${{ matrix.runner }}
-
-    permissions:
-      contents: 'read'
-      id-token: 'write'
-
-    steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4
-
+name: Setup RSS Environment
+description: Common steps for RSS job
+runs:
+  using: "composite"
+  steps:
     - name: Install Node.js
       uses: actions/setup-node@v4
       with:
@@ -43,3 +23,4 @@ jobs:
         path: 'solberg.xml'
         destination: 'miljobilen-rss'
         process_gcloudignore: false
+
